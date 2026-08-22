@@ -212,6 +212,30 @@ export default function Dashboard() {
     }
   }
 
+  const handleDeleteResponse = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir a resposta de ${viewModal.data.nome}? Essa ação não pode ser desfeita e ele voltará a ficar como pendente.`)) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('servidores_atualizacao')
+        .delete()
+        .eq('id', viewModal.data.id);
+        
+      if (error) throw error;
+      
+      const newResolvidos = resolvidos.filter(c => c !== viewModal.data.cpf);
+      setResolvidos(newResolvidos);
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(newResolvidos));
+      
+      setViewModal({ open: false, data: null });
+    } catch(err) {
+      console.error(err);
+      alert("Erro ao excluir resposta. Verifique se o banco de dados permite a exclusão.");
+    }
+  }
+
   // Export Logic
   const toggleExportUre = (ureName) => {
     const ure = data.find(u => u.name === ureName);
@@ -641,7 +665,12 @@ export default function Dashboard() {
               </div>
             )}
             
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+              {viewModal.data ? (
+                <button className="btn btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleDeleteResponse}>Excluir Resposta</button>
+              ) : (
+                <div />
+              )}
               <button className="btn btn-outline" onClick={() => setViewModal({ open: false, data: null })}>Fechar</button>
             </div>
           </div>
