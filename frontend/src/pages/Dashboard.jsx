@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, AlertCircle, CheckCircle2, ChevronRight, ExternalLink, Search, Copy, X, CheckSquare, Clock } from 'lucide-react'
+import { supabase } from '../supabase'
 
 export default function Dashboard() {
   const [data, setData] = useState([])
@@ -10,13 +11,13 @@ export default function Dashboard() {
   // Search and filter states
   const [ureSearch, setUreSearch] = useState('')
   const [servidorSearch, setServidorSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'concluido', 'faltando'
+  const [statusFilter, setStatusFilter] = useState('all')
   
   // Selection state
   const [selectedCpfs, setSelectedCpfs] = useState([])
   const [copiedFeedback, setCopiedFeedback] = useState(false)
 
-  // Tracking state (LocalStorage)
+  // Tracking state (LocalStorage + Supabase)
   const [resolvidos, setResolvidos] = useState([])
 
   // Load initial data
@@ -35,17 +36,47 @@ export default function Dashboard() {
         setLoading(false)
       })
 
-    const saved = localStorage.getItem('resolvidos_cpfs')
-    if (saved) {
-      try {
-        setResolvidos(JSON.parse(saved))
-      } catch(e) {}
+    const loadData = async () => {
+      let cpfsLocal = []
+      const saved = localStorage.getItem('resolvidos_cpfs')
+      if (saved) {
+        try { cpfsLocal = JSON.parse(saved) } catch(e) {}
+      }
+
+      let cpfsSupabase = []
+      if (supabase) {
+        try {
+          const { data } = await supabase.from('servidores_atualizacao').select('cpf')
+          if (data) cpfsSupabase = data.map(d => d.cpf)
+        } catch (error) {
+          console.error("Erro ao puxar dados do supabase", error)
+        }
+      }
+
+      const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase]))
+      setResolvidos(merged)
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(merged))
     }
+
+    loadData()
   }, [])
 
-  // Save resolvidos to localStorage whenever it changes
+  // Listen to storage changes (e.g. from the Form tab)
   useEffect(() => {
-    if (!loading) {
+    const handleStorageChange = (e) => {
+      if (e.key === 'resolvidos_cpfs' && e.newValue) {
+        try {
+          setResolvidos(JSON.parse(e.newValue))
+        } catch(err) {}
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  // Save resolvidos to localStorage whenever it changes inside this tab
+  useEffect(() => {
+    if (!loading && resolvidos.length > 0) {
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(resolvidos))
     }
   }, [resolvidos, loading])

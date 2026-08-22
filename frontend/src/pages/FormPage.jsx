@@ -45,6 +45,14 @@ export default function FormPage() {
         
       if (error) throw error
       
+      // Update local storage so the Dashboard tab updates immediately
+      const saved = localStorage.getItem('resolvidos_cpfs');
+      let cpfsLocal = saved ? JSON.parse(saved) : [];
+      if (!cpfsLocal.includes(formData.cpf)) {
+        cpfsLocal.push(formData.cpf);
+        localStorage.setItem('resolvidos_cpfs', JSON.stringify(cpfsLocal));
+      }
+
       setLoading(false)
       setSubmitted(true)
     } catch (error) {
