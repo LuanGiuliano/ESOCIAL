@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle2, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { supabase } from '../supabase'
 
 export default function FormPage() {
@@ -7,24 +7,20 @@ export default function FormPage() {
     nome: '',
     cpf: '',
     ure: '',
+    dependentes: '',
     observacoes: ''
   })
-  
-  const [dependentes, setDependentes] = useState([
-    { nome: '', cpf: '', data_nascimento: '', parentesco: '' }
-  ])
-
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       ure: params.get('ure') || '',
       cpf: params.get('cpf') || '',
       nome: params.get('nome') || ''
-    })
+    }))
   }, [])
 
   const handleChange = (e) => {
@@ -34,28 +30,11 @@ export default function FormPage() {
     })
   }
 
-  const handleDependenteChange = (index, field, value) => {
-    const novosDependentes = [...dependentes]
-    novosDependentes[index][field] = value
-    setDependentes(novosDependentes)
-  }
-
-  const addDependente = () => {
-    setDependentes([...dependentes, { nome: '', cpf: '', data_nascimento: '', parentesco: '' }])
-  }
-
-  const removeDependente = (index) => {
-    const novos = dependentes.filter((_, i) => i !== index)
-    setDependentes(novos)
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     
     try {
-      const dependentesStr = JSON.stringify(dependentes)
-      
       const { data, error } = await supabase
         .from('servidores_atualizacao')
         .insert([
@@ -63,7 +42,7 @@ export default function FormPage() {
             nome: formData.nome, 
             cpf: formData.cpf, 
             ure: formData.ure,
-            dependentes: dependentesStr,
+            dependentes: formData.dependentes,
             observacoes: formData.observacoes,
             atualizado_em: new Date()
           }
@@ -117,7 +96,6 @@ export default function FormPage() {
 
         <form onSubmit={handleSubmit} className="form-content">
           
-          {/* Readonly info */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
             <div className="form-group">
               <label>Nome do Servidor</label>
@@ -135,92 +113,20 @@ export default function FormPage() {
 
           <div style={{ borderTop: '1px solid var(--border-color)', margin: '2rem 0' }}></div>
           
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Dados dos Dependentes</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            Preencha os dados de todos os seus dependentes que possuem pendência.
-          </p>
-
-          {dependentes.map((dep, index) => (
-            <div key={index} style={{ backgroundColor: 'var(--bg-color)', padding: '1.5rem', borderRadius: '8px', marginBottom: '1.5rem', position: 'relative', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--accent-color)' }}>Dependente {index + 1}</span>
-                {dependentes.length > 1 && (
-                  <button 
-                    type="button" 
-                    onClick={() => removeDependente(index)}
-                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
-                  >
-                    <Trash2 size={14} /> Remover
-                  </button>
-                )}
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label>Nome Completo do Dependente</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: João da Silva"
-                    value={dep.nome}
-                    onChange={(e) => handleDependenteChange(index, 'nome', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>CPF do Dependente</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: 123.456.789-00"
-                    value={dep.cpf}
-                    onChange={(e) => handleDependenteChange(index, 'cpf', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Data de Nascimento</label>
-                  <input 
-                    type="date" 
-                    value={dep.data_nascimento}
-                    onChange={(e) => handleDependenteChange(index, 'data_nascimento', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label>Grau de Parentesco</label>
-                  <select 
-                    value={dep.parentesco}
-                    onChange={(e) => handleDependenteChange(index, 'parentesco', e.target.value)}
-                    required
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.75rem 1rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      fontFamily: 'inherit',
-                      outline: 'none',
-                      backgroundColor: 'white'
-                    }}
-                  >
-                    <option value="" disabled>Selecione...</option>
-                    <option value="Filho(a)">Filho(a)</option>
-                    <option value="Cônjuge">Cônjuge</option>
-                    <option value="Enteado(a)">Enteado(a)</option>
-                    <option value="Pai/Mãe">Pai/Mãe</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          <button 
-            type="button" 
-            onClick={addDependente}
-            className="btn btn-outline" 
-            style={{ width: '100%', marginBottom: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <Plus size={16} /> Adicionar outro dependente
-          </button>
+          <div className="form-group">
+            <label htmlFor="dependentes" style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>
+              SOLICITAÇÃO DE DADOS DOS DEPENDENTES: (NOME COMPLETO, CPF e DATA DE NASCIMENTO)
+            </label>
+            <textarea 
+              id="dependentes" 
+              name="dependentes"
+              rows="4" 
+              placeholder="Ex: João da Silva - CPF: 123.456.789-00 - Nasc: 10/05/2010"
+              value={formData.dependentes}
+              onChange={handleChange}
+              required
+            ></textarea>
+          </div>
 
           <div className="form-group">
             <label htmlFor="observacoes">Observações (Opcional)</label>

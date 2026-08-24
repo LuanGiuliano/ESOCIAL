@@ -308,6 +308,28 @@ export default function Dashboard() {
       return { nome: text, dtNasc: '', parentesco: '' };
     }
 
+    const parseFreeTextResponse = (line) => {
+      const cpfMatch = line.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+      const cpf = cpfMatch ? cpfMatch[0] : '';
+      
+      const dateMatch = line.match(/\d{2}\/\d{2}\/\d{4}/);
+      const dataNasc = dateMatch ? dateMatch[0] : '';
+      
+      let nome = line;
+      if (cpf) nome = nome.replace(cpf, '');
+      if (dataNasc) nome = nome.replace(dataNasc, '');
+      
+      nome = nome
+        .replace(/cpf:?/i, '')
+        .replace(/data:?/i, '')
+        .replace(/nasc.*?(:|-)/i, '')
+        .replace(/[,|-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+        
+      return { nome, cpf, data_nascimento: dataNasc, parentesco: '' };
+    }
+
     data.forEach(ure => {
       ure.servidores.forEach(s => {
         if (exportCpfs.includes(s.cpf)) {
@@ -318,9 +340,15 @@ export default function Dashboard() {
           if (resp && resp.dependentes) {
             try {
               const parsed = JSON.parse(resp.dependentes);
-              if (Array.isArray(parsed)) responseDeps = parsed;
+              if (Array.isArray(parsed)) {
+                responseDeps = parsed;
+              } else {
+                throw new Error("Not array");
+              }
             } catch(e) {
-              responseDeps = [{ nome: resp.dependentes }];
+              const lines = resp.dependentes.split(/[\n;]/).filter(l => l.trim().length > 3);
+              responseDeps = lines.map(l => parseFreeTextResponse(l));
+              if (responseDeps.length === 0) responseDeps = [{ nome: resp.dependentes }];
             }
           }
 
@@ -337,7 +365,7 @@ export default function Dashboard() {
 
           for (let i = 0; i < 3; i++) {
              const d = responseDeps[i];
-             rowData[`Resposta Dep ${i+1} - Nome`] = d ? (d.nome || d) : "";
+             rowData[`Resposta Dep ${i+1} - Nome`] = d ? (d.nome || "") : "";
              rowData[`Resposta Dep ${i+1} - CPF`] = d ? (d.cpf || "") : "";
              rowData[`Resposta Dep ${i+1} - Data Nasc`] = d ? (d.data_nascimento || "") : "";
              rowData[`Resposta Dep ${i+1} - Parentesco`] = d ? (d.parentesco || "") : "";
