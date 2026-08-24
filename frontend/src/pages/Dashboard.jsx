@@ -354,6 +354,8 @@ export default function Dashboard() {
 
           const rowData = {
             "URE / DRE": ure.name,
+            "Matrícula": s.matricula || "-",
+            "Vínculo": s.vinculo || "-",
             "Nome do Servidor": s.nome,
             "CPF": formatCPF(s.cpf),
             "Cargo": s.cargo,
@@ -588,6 +590,8 @@ export default function Dashboard() {
                         <span>Selecionar todos</span>
                       </label>
                     </th>
+                    <th>Matrícula</th>
+                    <th>Vínculo</th>
                     <th>Nome do Servidor</th>
                     <th>CPF</th>
                     <th>Cargo / Função</th>
@@ -598,7 +602,7 @@ export default function Dashboard() {
                 <tbody>
                   {filteredServidores.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                         Nenhum servidor encontrado na busca ou no filtro selecionado.
                       </td>
                     </tr>
@@ -616,6 +620,8 @@ export default function Dashboard() {
                               onChange={() => handleSelectOne(servidor.cpf)}
                             />
                           </td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{servidor.matricula || '-'}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{servidor.vinculo || '-'}</td>
                           <td>
                             <div style={{ fontWeight: 600 }}>{servidor.nome}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }} title={servidor.dependente}>

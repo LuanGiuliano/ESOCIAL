@@ -40,11 +40,13 @@ try:
         servidor = {
             "nome": clean_val(row.get('NOME')),
             "cpf": clean_val(row.get('CPF.1')),
+            "matricula": clean_val(row.get('NUMFUNC')),
+            "vinculo": clean_val(row.get('NUMVINC')),
             "cargo": clean_val(row.get('CARGO')) + " - " + clean_val(row.get('NOME_CARGO')),
             "setor": clean_val(row.get('NOMESETOR')),
             "cidade": clean_val(row.get('CIDADE')),
             "dependente": dependente_val,
-            "pendente": True # Agora todos que entram no sistema são pendentes
+            "pendente": True
         }
         
         data_by_ure[ure_name]["servidores"].append(servidor)
