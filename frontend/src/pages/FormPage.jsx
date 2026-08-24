@@ -11,7 +11,7 @@ export default function FormPage() {
   })
   
   const [dependentes, setDependentes] = useState([
-    { nome: '', cpf: '', data_nascimento: '', parentesco: '' }
+    { nome: '', cpf: '', data_nascimento: '', parentesco_select: '', parentesco_outro: '' }
   ])
 
   const [submitted, setSubmitted] = useState(false)
@@ -41,7 +41,7 @@ export default function FormPage() {
   }
 
   const addDependente = () => {
-    setDependentes([...dependentes, { nome: '', cpf: '', data_nascimento: '', parentesco: '' }])
+    setDependentes([...dependentes, { nome: '', cpf: '', data_nascimento: '', parentesco_select: '', parentesco_outro: '' }])
   }
 
   const removeDependente = (index) => {
@@ -54,7 +54,13 @@ export default function FormPage() {
     setLoading(true)
     
     try {
-      const dependentesStr = JSON.stringify(dependentes)
+      const dependentesToSave = dependentes.map(dep => ({
+        nome: dep.nome,
+        cpf: dep.cpf,
+        data_nascimento: dep.data_nascimento,
+        parentesco: dep.parentesco_select === 'Outro' ? dep.parentesco_outro : dep.parentesco_select
+      }))
+      const dependentesStr = JSON.stringify(dependentesToSave)
       
       const { data, error } = await supabase
         .from('servidores_atualizacao')
@@ -190,8 +196,8 @@ export default function FormPage() {
                   <label className="form-label">Grau de Parentesco</label>
                   <select 
                     className="form-input"
-                    value={dep.parentesco}
-                    onChange={(e) => handleDependenteChange(index, 'parentesco', e.target.value)}
+                    value={dep.parentesco_select}
+                    onChange={(e) => handleDependenteChange(index, 'parentesco_select', e.target.value)}
                     required
                     style={{ 
                       backgroundColor: 'white'
@@ -199,11 +205,25 @@ export default function FormPage() {
                   >
                     <option value="" disabled>Selecione...</option>
                     <option value="Filho(a)">Filho(a)</option>
+                    <option value="Neto(a)">Neto(a)</option>
                     <option value="Cônjuge">Cônjuge</option>
                     <option value="Enteado(a)">Enteado(a)</option>
                     <option value="Pai/Mãe">Pai/Mãe</option>
                     <option value="Outro">Outro</option>
                   </select>
+                  
+                  {dep.parentesco_select === 'Outro' && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+                      <input 
+                        className="form-input"
+                        type="text" 
+                        placeholder="Especifique o parentesco (ex: Sobrinho)"
+                        value={dep.parentesco_outro}
+                        onChange={(e) => handleDependenteChange(index, 'parentesco_outro', e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
