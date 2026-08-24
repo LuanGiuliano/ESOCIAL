@@ -357,6 +357,7 @@ export default function Dashboard() {
             "Matrícula": s.matricula || "-",
             "Vínculo": s.vinculo || "-",
             "Nome do Servidor": s.nome,
+            "Escola": s.escola || "-",
             "CPF": formatCPF(s.cpf),
             "Cargo": s.cargo,
             "Status": resolvidos.includes(s.cpf) ? "Concluído" : "Pendente",
@@ -593,6 +594,7 @@ export default function Dashboard() {
                     <th>Matrícula</th>
                     <th>Vínculo</th>
                     <th>Nome do Servidor</th>
+                    <th>Escola</th>
                     <th>CPF</th>
                     <th>Cargo / Função</th>
                     <th>Status Local</th>
@@ -602,7 +604,7 @@ export default function Dashboard() {
                 <tbody>
                   {filteredServidores.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                      <td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                         Nenhum servidor encontrado na busca ou no filtro selecionado.
                       </td>
                     </tr>
@@ -628,6 +630,7 @@ export default function Dashboard() {
                               Pendência: {servidor.dependente.length > 30 ? servidor.dependente.substring(0, 30) + '...' : servidor.dependente}
                             </div>
                           </td>
+                          <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{servidor.escola || '-'}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{formatCPF(servidor.cpf)}</td>
                           <td style={{ fontSize: '0.875rem' }}>{servidor.cargo}</td>
                           <td>

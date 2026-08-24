@@ -3,19 +3,41 @@ import json
 import math
 
 try:
-    file_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/S-1202_0098406_00001.xlsx"
+    file_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/S-1202_0098406_00001 (1).xlsx"
     print(f"Reading {file_path}...")
     df = pd.read_excel(file_path)
     
     # Drop rows where URE.1 is completely empty
     df = df.dropna(subset=['URE.1'])
     
+    def fix_text(text):
+        if not isinstance(text, str): return text
+        replacements = {
+            'Educac?o': 'Educação',
+            'S?o': 'São',
+            'Jo?o': 'João',
+            'Aten??o': 'Atenção',
+            'Manuten??o': 'Manutenção',
+            'Coordenac?o': 'Coordenação',
+            'Direc?o': 'Direção',
+            'Administrac?o': 'Administração',
+            'Lotac?o': 'Lotação',
+            'Fundac?o': 'Fundação',
+            'Avaliac?o': 'Avaliação',
+            'E.E.E.F.M.': 'EEEFM',
+            '?': '' # Remover interrogações perdidas
+        }
+        for bad, good in replacements.items():
+            text = text.replace(bad, good)
+            text = text.replace(bad.upper(), good.upper())
+        return text
+
     def clean_val(v):
         if pd.isna(v):
             return ""
         if isinstance(v, float) and math.isnan(v):
             return ""
-        return str(v).strip()
+        return fix_text(str(v).strip())
 
     data_by_ure = {}
     
@@ -42,6 +64,7 @@ try:
             "cpf": clean_val(row.get('CPF.1')),
             "matricula": clean_val(row.get('NUMFUNC')),
             "vinculo": clean_val(row.get('NUMVINC')),
+            "escola": clean_val(row.get('Unnamed: 29')),
             "cargo": clean_val(row.get('CARGO')) + " - " + clean_val(row.get('NOME_CARGO')),
             "setor": clean_val(row.get('NOMESETOR')),
             "cidade": clean_val(row.get('CIDADE')),
