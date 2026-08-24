@@ -97,27 +97,28 @@ export default function FormPage() {
         <form onSubmit={handleSubmit} className="form-content">
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div className="form-group">
-              <label>Nome do Servidor</label>
-              <input type="text" value={formData.nome} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
+            <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="form-label">Nome do Servidor</label>
+              <input className="form-input" type="text" value={formData.nome} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
             </div>
-            <div className="form-group">
-              <label>CPF</label>
-              <input type="text" value={formData.cpf} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
+            <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="form-label">CPF</label>
+              <input className="form-input" type="text" value={formData.cpf} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
             </div>
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label>Unidade Regional</label>
-              <input type="text" value={formData.ure} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
+            <div className="form-group" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column' }}>
+              <label className="form-label">Lotação (URE/DRE)</label>
+              <input className="form-input" type="text" value={formData.ure} readOnly style={{ backgroundColor: 'var(--bg-color)' }} />
             </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', margin: '2rem 0' }}></div>
           
-          <div className="form-group">
-            <label htmlFor="dependentes" style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>
+          <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="dependentes" className="form-label" style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>
               SOLICITAÇÃO DE DADOS DOS DEPENDENTES: (NOME COMPLETO, CPF e DATA DE NASCIMENTO)
             </label>
             <textarea 
+              className="form-input"
               id="dependentes" 
               name="dependentes"
               rows="4" 
@@ -128,9 +129,10 @@ export default function FormPage() {
             ></textarea>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="observacoes">Observações (Opcional)</label>
+          <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="observacoes" className="form-label">Observações Adicionais (Opcional)</label>
             <textarea 
+              className="form-input"
               id="observacoes" 
               name="observacoes"
               rows="3" 
