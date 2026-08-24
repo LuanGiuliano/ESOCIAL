@@ -298,21 +298,55 @@ export default function Dashboard() {
       }
     }
 
+    const extractOriginalData = (text) => {
+      if (!text) return { nome: text, dtNasc: '', parentesco: '' };
+      const regex = /NUMERO\s*=\s*\d+\s+(.*?)\s+DTNASC\s*=\s*(.*?)\s+PARENTESCO\s*=\s*(.*)/i;
+      const match = text.match(regex);
+      if (match) {
+        return { nome: match[1].trim(), dtNasc: match[2].trim(), parentesco: match[3].trim() };
+      }
+      return { nome: text, dtNasc: '', parentesco: '' };
+    }
+
     data.forEach(ure => {
       ure.servidores.forEach(s => {
         if (exportCpfs.includes(s.cpf)) {
           const resp = supabaseData.find(d => d.cpf === s.cpf);
-          rows.push({
+          const originalDep = extractOriginalData(s.dependente);
+          
+          let responseDeps = [];
+          if (resp && resp.dependentes) {
+            try {
+              const parsed = JSON.parse(resp.dependentes);
+              if (Array.isArray(parsed)) responseDeps = parsed;
+            } catch(e) {
+              responseDeps = [{ nome: resp.dependentes }];
+            }
+          }
+
+          const rowData = {
             "URE / DRE": ure.name,
             "Nome do Servidor": s.nome,
             "CPF": formatCPF(s.cpf),
             "Cargo": s.cargo,
             "Status": resolvidos.includes(s.cpf) ? "Concluído" : "Pendente",
-            "Pendência Original": s.dependente,
-            "Resposta - Dependentes": resp ? resp.dependentes : "",
-            "Resposta - Observações": resp ? resp.observacoes : "",
-            "Data da Resposta": resp ? new Date(resp.atualizado_em).toLocaleString('pt-BR') : ""
-          });
+            "Original - Nome Dependente": originalDep.nome,
+            "Original - Data Nasc": originalDep.dtNasc,
+            "Original - Parentesco": originalDep.parentesco,
+          };
+
+          for (let i = 0; i < 3; i++) {
+             const d = responseDeps[i];
+             rowData[`Resposta Dep ${i+1} - Nome`] = d ? (d.nome || d) : "";
+             rowData[`Resposta Dep ${i+1} - CPF`] = d ? (d.cpf || "") : "";
+             rowData[`Resposta Dep ${i+1} - Data Nasc`] = d ? (d.data_nascimento || "") : "";
+             rowData[`Resposta Dep ${i+1} - Parentesco`] = d ? (d.parentesco || "") : "";
+          }
+          
+          rowData["Resposta - Observações"] = resp ? resp.observacoes : "";
+          rowData["Data da Resposta"] = resp ? new Date(resp.atualizado_em).toLocaleString('pt-BR') : "";
+
+          rows.push(rowData);
         }
       })
     })
@@ -645,7 +679,24 @@ export default function Dashboard() {
                 <p><strong>DRE/URE:</strong> {viewModal.data.ure}</p>
                 <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--bg-color)', borderRadius: '6px' }}>
                   <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Dependentes Informados:</p>
-                  <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem' }}>{viewModal.data.dependentes}</p>
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(viewModal.data.dependentes);
+                      if (Array.isArray(parsed)) {
+                        return parsed.map((d, i) => (
+                          <div key={i} style={{ marginBottom: i < parsed.length - 1 ? '1rem' : 0, paddingBottom: i < parsed.length - 1 ? '1rem' : 0, borderBottom: i < parsed.length - 1 ? '1px dashed var(--border-color)' : 'none' }}>
+                            <p style={{ fontSize: '0.875rem' }}><strong>Nome:</strong> {d.nome}</p>
+                            <p style={{ fontSize: '0.875rem' }}><strong>CPF:</strong> {d.cpf}</p>
+                            <p style={{ fontSize: '0.875rem' }}><strong>Nascimento:</strong> {d.data_nascimento}</p>
+                            <p style={{ fontSize: '0.875rem' }}><strong>Parentesco:</strong> {d.parentesco}</p>
+                          </div>
+                        ))
+                      }
+                      return <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem' }}>{viewModal.data.dependentes}</p>
+                    } catch(e) {
+                      return <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem' }}>{viewModal.data.dependentes}</p>
+                    }
+                  })()}
                 </div>
                 {viewModal.data.observacoes && (
                   <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--bg-color)', borderRadius: '6px' }}>
