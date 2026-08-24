@@ -95,9 +95,22 @@ export default function FormPage() {
     })
   }
 
+  const handleCpfMask = (value) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  }
+
   const handleDependenteChange = (index, field, value) => {
     const novosDependentes = [...dependentes]
-    novosDependentes[index][field] = value
+    if (field === 'cpf') {
+      novosDependentes[index][field] = handleCpfMask(value)
+    } else {
+      novosDependentes[index][field] = value
+    }
     setDependentes(novosDependentes)
   }
 
@@ -233,7 +246,7 @@ export default function FormPage() {
                   />
                 </div>
                 <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label className="form-label">CPF do Dependente</label>
+                  <label className="form-label" style={{ color: 'var(--danger)', fontWeight: 'bold' }}>CPF do Dependente *</label>
                   <input 
                     className="form-input"
                     type="text" 
@@ -241,7 +254,10 @@ export default function FormPage() {
                     value={dep.cpf}
                     onChange={(e) => handleDependenteChange(index, 'cpf', e.target.value)}
                     required
+                    style={{ borderColor: '#ef4444', borderWidth: '2px', backgroundColor: '#fef2f2' }}
+                    maxLength="14"
                   />
+                  <small style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>Preenchimento Obrigatório</small>
                 </div>
                 <div className="form-group" style={{ display: 'flex', flexDirection: 'column' }}>
                   <label className="form-label">Data de Nascimento</label>
