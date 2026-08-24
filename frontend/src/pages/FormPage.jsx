@@ -19,12 +19,73 @@ export default function FormPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const urlCpf = params.get('cpf') || '';
+    
     setFormData(prev => ({
       ...prev,
       ure: params.get('ure') || '',
-      cpf: params.get('cpf') || '',
+      cpf: urlCpf,
       nome: params.get('nome') || ''
     }))
+
+    if (urlCpf) {
+      fetch('/data.json')
+        .then(res => res.json())
+        .then(data => {
+          const matchingServidores = [];
+          data.forEach(ure => {
+            ure.servidores.forEach(s => {
+              if (s.cpf === urlCpf) {
+                matchingServidores.push(s);
+              }
+            })
+          });
+
+          if (matchingServidores.length > 0) {
+            const prefilledDependentes = matchingServidores.map(s => {
+              const text = s.dependente || '';
+              const regex = /NUMERO\s*=\s*\d+\s+(.*?)\s+DTNASC\s*=\s*(.*?)\s+PARENTESCO\s*=\s*(.*)/i;
+              const match = text.match(regex);
+              
+              let nome = '', dataNasc = '', parentescoSelect = '', parentescoOutro = '';
+              
+              if (match) {
+                nome = match[1].trim();
+                
+                const rawDate = match[2].trim();
+                const dateParts = rawDate.split('/');
+                if (dateParts.length === 3) {
+                  dataNasc = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                }
+
+                const rawParentesco = match[3].trim().toUpperCase();
+                if (rawParentesco.includes('FILHO')) parentescoSelect = 'Filho(a)';
+                else if (rawParentesco.includes('NETO')) parentescoSelect = 'Neto(a)';
+                else if (rawParentesco.includes('CONJUGE') || rawParentesco.includes('CÔNJUGE') || rawParentesco.includes('ESPOSA') || rawParentesco.includes('MARIDO')) parentescoSelect = 'Cônjuge';
+                else if (rawParentesco.includes('ENTEADO')) parentescoSelect = 'Enteado(a)';
+                else if (rawParentesco.includes('PAI') || rawParentesco.includes('MAE') || rawParentesco.includes('MÃE')) parentescoSelect = 'Pai/Mãe';
+                else {
+                  parentescoSelect = 'Outro';
+                  parentescoOutro = match[3].trim(); 
+                }
+              } else {
+                nome = text;
+              }
+
+              return { 
+                nome, 
+                cpf: '', 
+                data_nascimento: dataNasc, 
+                parentesco_select: parentescoSelect, 
+                parentesco_outro: parentescoOutro 
+              };
+            });
+            
+            setDependentes(prefilledDependentes);
+          }
+        })
+        .catch(err => console.error("Erro ao carregar data.json:", err));
+    }
   }, [])
 
   const handleChange = (e) => {
