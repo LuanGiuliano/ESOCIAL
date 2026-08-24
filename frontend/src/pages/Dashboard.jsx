@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, AlertCircle, CheckCircle2, ChevronRight, ExternalLink, Search, Copy, X, Clock, FileSpreadsheet, Eye, ChevronDown } from 'lucide-react'
 import { supabase } from '../supabase'
-import * as XLSX from 'xlsx'
 
 export default function Dashboard() {
   const [data, setData] = useState([])
@@ -23,12 +22,6 @@ export default function Dashboard() {
 
   // Modal states
   const [viewModal, setViewModal] = useState({ open: false, data: null, loading: false, error: false })
-  const [exportModalOpen, setExportModalOpen] = useState(false)
-  
-  // Export selections
-  const [exportUres, setExportUres] = useState([])
-  const [exportCpfs, setExportCpfs] = useState([])
-  const [expandedExportUres, setExpandedExportUres] = useState([])
 
   // Load initial data
   useEffect(() => {
@@ -236,158 +229,6 @@ export default function Dashboard() {
     }
   }
 
-  // Export Logic
-  const toggleExportUre = (ureName) => {
-    const ure = data.find(u => u.name === ureName);
-    if (exportUres.includes(ureName)) {
-      setExportUres(exportUres.filter(u => u !== ureName));
-      const cpfsToRemove = ure.servidores.map(s => s.cpf);
-      setExportCpfs(exportCpfs.filter(cpf => !cpfsToRemove.includes(cpf)));
-    } else {
-      setExportUres([...exportUres, ureName]);
-      const cpfsToAdd = ure.servidores.map(s => s.cpf);
-      setExportCpfs(Array.from(new Set([...exportCpfs, ...cpfsToAdd])));
-    }
-  }
-
-  const toggleExportCpf = (cpf) => {
-    if (exportCpfs.includes(cpf)) {
-      setExportCpfs(exportCpfs.filter(c => c !== cpf));
-    } else {
-      setExportCpfs([...exportCpfs, cpf]);
-    }
-  }
-
-  const toggleExpandedExportUre = (ureName) => {
-    if (expandedExportUres.includes(ureName)) {
-      setExpandedExportUres(expandedExportUres.filter(u => u !== ureName));
-    } else {
-      setExpandedExportUres([...expandedExportUres, ureName]);
-    }
-  }
-
-  const selectAllForExport = () => {
-    const allUres = data.map(u => u.name);
-    let allCpfs = [];
-    data.forEach(u => u.servidores.forEach(s => allCpfs.push(s.cpf)));
-    setExportUres(allUres);
-    setExportCpfs(allCpfs);
-  }
-
-  const clearExportSelection = () => {
-    setExportUres([]);
-    setExportCpfs([]);
-  }
-
-  const handleGenerateSpreadsheet = async () => {
-    if (exportCpfs.length === 0) {
-      alert("Nenhum servidor selecionado para exportação.");
-      return;
-    }
-
-    const rows = [];
-    
-    // We will fetch from supabase to get their responses if they answered
-    let supabaseData = [];
-    if (supabase) {
-      try {
-        const { data: sData } = await supabase.from('servidores_atualizacao').select('*').in('cpf', exportCpfs);
-        if (sData) supabaseData = sData;
-      } catch(e) {
-        console.error("Erro ao buscar dados do supabase para exportação", e);
-      }
-    }
-
-    const extractOriginalData = (text) => {
-      if (!text) return { nome: text, dtNasc: '', parentesco: '' };
-      const regex = /NUMERO\s*=\s*\d+\s+(.*?)\s+DTNASC\s*=\s*(.*?)\s+PARENTESCO\s*=\s*(.*)/i;
-      const match = text.match(regex);
-      if (match) {
-        return { nome: match[1].trim(), dtNasc: match[2].trim(), parentesco: match[3].trim() };
-      }
-      return { nome: text, dtNasc: '', parentesco: '' };
-    }
-
-    const parseFreeTextResponse = (line) => {
-      const cpfMatch = line.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
-      const cpf = cpfMatch ? cpfMatch[0] : '';
-      
-      const dateMatch = line.match(/\d{2}\/\d{2}\/\d{4}/);
-      const dataNasc = dateMatch ? dateMatch[0] : '';
-      
-      let nome = line;
-      if (cpf) nome = nome.replace(cpf, '');
-      if (dataNasc) nome = nome.replace(dataNasc, '');
-      
-      nome = nome
-        .replace(/cpf:?/i, '')
-        .replace(/data:?/i, '')
-        .replace(/nasc.*?(:|-)/i, '')
-        .replace(/[,|-]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-        
-      return { nome, cpf, data_nascimento: dataNasc, parentesco: '' };
-    }
-
-    data.forEach(ure => {
-      ure.servidores.forEach(s => {
-        if (exportCpfs.includes(s.cpf)) {
-          const resp = supabaseData.find(d => d.cpf === s.cpf);
-          const originalDep = extractOriginalData(s.dependente);
-          
-          let responseDeps = [];
-          if (resp && resp.dependentes) {
-            try {
-              const parsed = JSON.parse(resp.dependentes);
-              if (Array.isArray(parsed)) {
-                responseDeps = parsed;
-              } else {
-                throw new Error("Not array");
-              }
-            } catch(e) {
-              const lines = resp.dependentes.split(/[\n;]/).filter(l => l.trim().length > 3);
-              responseDeps = lines.map(l => parseFreeTextResponse(l));
-              if (responseDeps.length === 0) responseDeps = [{ nome: resp.dependentes }];
-            }
-          }
-
-          const rowData = {
-            "URE / DRE": ure.name,
-            "Matrícula": s.matricula || "-",
-            "Vínculo": s.vinculo || "-",
-            "Nome do Servidor": s.nome,
-            "Escola": s.escola || "-",
-            "CPF": formatCPF(s.cpf),
-            "Cargo": s.cargo,
-            "Status": resolvidos.includes(s.cpf) ? "Concluído" : "Pendente",
-            "Original - Nome Dependente": originalDep.nome,
-            "Original - Data Nasc": originalDep.dtNasc,
-            "Original - Parentesco": originalDep.parentesco,
-          };
-
-          for (let i = 0; i < 3; i++) {
-             const d = responseDeps[i];
-             rowData[`Resposta Dep ${i+1} - Nome`] = d ? (d.nome || "") : "";
-             rowData[`Resposta Dep ${i+1} - CPF`] = d ? (d.cpf || "") : "";
-             rowData[`Resposta Dep ${i+1} - Data Nasc`] = d ? (d.data_nascimento || "") : "";
-             rowData[`Resposta Dep ${i+1} - Parentesco`] = d ? (d.parentesco || "") : "";
-          }
-          
-          rowData["Resposta - Observações"] = resp ? resp.observacoes : "";
-          rowData["Data da Resposta"] = resp ? new Date(resp.atualizado_em).toLocaleString('pt-BR') : "";
-
-          rows.push(rowData);
-        }
-      })
-    })
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Servidores");
-    XLSX.writeFile(workbook, "Relatorio_Atualizacao_Cadastral.xlsx");
-    setExportModalOpen(false);
-  }
 
   return (
     <div className="app-container">
@@ -765,89 +606,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Export Modal */}
-      {exportModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100,
-          display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2rem'
-        }}>
-          <div className="glass-panel" style={{ width: '600px', maxWidth: '100%', height: '80vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileSpreadsheet size={20} /> Exportar para Planilha
-              </h2>
-              <button onClick={() => setExportModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
-            </div>
-            
-            <div style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--bg-color)', display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-              <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', backgroundColor: 'white' }} onClick={selectAllForExport}>Selecionar Tudo</button>
-              <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', backgroundColor: 'white' }} onClick={clearExportSelection}>Limpar Seleção</button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-              {data.map(ure => {
-                const selectedCount = ure.servidores.filter(s => exportCpfs.includes(s.cpf)).length;
-                const isExpanded = expandedExportUres.includes(ure.name);
-                
-                return (
-                  <div key={ure.name} style={{ marginBottom: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', backgroundColor: 'var(--bg-color)' }}>
-                      <button 
-                        onClick={() => toggleExpandedExportUre(ure.name)} 
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '0.5rem', display: 'flex' }}
-                      >
-                        <ChevronDown size={16} style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(270deg)', transition: 'transform 0.2s' }} />
-                      </button>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1, margin: 0 }}>
-                        <input 
-                          type="checkbox" 
-                          className="checkbox-custom"
-                          checked={exportUres.includes(ure.name) || selectedCount === ure.servidores.length}
-                          onChange={() => toggleExportUre(ure.name)}
-                        />
-                        <span style={{ fontWeight: 600 }}>{ure.name}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
-                          ({selectedCount} / {ure.servidores.length} selecionados)
-                        </span>
-                      </label>
-                    </div>
-                    
-                    {isExpanded && (
-                      <div style={{ padding: '0.5rem 1rem 0.5rem 3rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {ure.servidores.map(s => (
-                          <label key={s.cpf} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0, fontSize: '0.875rem' }}>
-                            <input 
-                              type="checkbox" 
-                              className="checkbox-custom"
-                              checked={exportCpfs.includes(s.cpf)}
-                              onChange={() => toggleExportCpf(s.cpf)}
-                            />
-                            <span>{s.nome}</span>
-                            {resolvidos.includes(s.cpf) && <span style={{ color: 'var(--success)', fontSize: '0.7rem', fontWeight: 600 }}>[Concluído]</span>}
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                {exportCpfs.length} servidores selecionados
-              </span>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="btn btn-outline" onClick={() => setExportModalOpen(false)}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleGenerateSpreadsheet} disabled={exportCpfs.length === 0}>
-                  <FileSpreadsheet size={16} /> Gerar Excel (.xlsx)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
