@@ -116,10 +116,16 @@ export default function Dashboard() {
   }
 
   if (dreFilter !== 'all') {
-    filteredServidores = filteredServidores.filter(s => s.numero_dre === dreFilter)
+    filteredServidores = filteredServidores.filter(s => 
+      s.cidade && ['BELEM', 'ANANINDEUA'].includes(s.cidade.trim().toUpperCase()) && s.numero_dre === dreFilter
+    )
   }
 
-  const uniqueDres = selectedUre ? Array.from(new Set(selectedUre.servidores.map(s => s.numero_dre))).sort() : []
+  const uniqueDres = selectedUre ? Array.from(new Set(
+    selectedUre.servidores
+      .filter(s => s.cidade && ['BELEM', 'ANANINDEUA'].includes(s.cidade.trim().toUpperCase()))
+      .map(s => s.numero_dre)
+  )).sort() : []
 
   const totalServidores = selectedUre?.servidores.length || 0
   const currentUreCpfs = selectedUre?.servidores.map(s => s.cpf) || []
@@ -495,7 +501,11 @@ export default function Dashboard() {
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>{servidor.matricula || '-'}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{servidor.vinculo || '-'}</td>
-                          <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{servidor.numero_dre || 'Não encontrado'}</td>
+                          <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            {servidor.cidade && ['BELEM', 'ANANINDEUA'].includes(servidor.cidade.trim().toUpperCase()) 
+                              ? (servidor.numero_dre || 'Não encontrado') 
+                              : '-'}
+                          </td>
                           <td>
                             <div style={{ fontWeight: 600 }}>{servidor.nome}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }} title={servidor.dependente}>
