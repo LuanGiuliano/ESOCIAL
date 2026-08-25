@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [ureSearch, setUreSearch] = useState('')
   const [servidorSearch, setServidorSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [dreFilter, setDreFilter] = useState('all')
   
   // Selection state for copying links
   const [selectedCpfs, setSelectedCpfs] = useState([])
@@ -87,6 +88,7 @@ export default function Dashboard() {
     setSelectedCpfs([])
     setServidorSearch('')
     setStatusFilter('all')
+    setDreFilter('all')
   }, [selectedUre])
 
   if (loading) {
@@ -112,6 +114,12 @@ export default function Dashboard() {
   } else if (statusFilter === 'faltando') {
     filteredServidores = filteredServidores.filter(s => !resolvidos.includes(s.cpf))
   }
+
+  if (dreFilter !== 'all') {
+    filteredServidores = filteredServidores.filter(s => s.numero_dre === dreFilter)
+  }
+
+  const uniqueDres = selectedUre ? Array.from(new Set(selectedUre.servidores.map(s => s.numero_dre))).sort() : []
 
   const totalServidores = selectedUre?.servidores.length || 0
   const currentUreCpfs = selectedUre?.servidores.map(s => s.cpf) || []
@@ -379,25 +387,46 @@ export default function Dashboard() {
             </div>
 
             {/* Table Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ position: 'relative', width: '300px' }}>
-                <Search size={18} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-secondary)' }} />
-                <input 
-                  type="text" 
-                  className="search-input" 
-                  placeholder="Buscar Servidor por nome ou CPF..." 
-                  style={{ paddingLeft: '2.2rem', paddingRight: '2rem', marginBottom: 0 }}
-                  value={servidorSearch}
-                  onChange={(e) => setServidorSearch(e.target.value)}
-                />
-                {servidorSearch && (
-                  <button 
-                    onClick={() => setServidorSearch('')}
-                    style={{ position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                    title="Limpar busca"
-                  >
-                    <X size={16} />
-                  </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative', width: '300px' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-secondary)' }} />
+                  <input 
+                    type="text" 
+                    className="search-input" 
+                    placeholder="Buscar Servidor por nome ou CPF..." 
+                    style={{ paddingLeft: '2.2rem', paddingRight: '2rem', marginBottom: 0 }}
+                    value={servidorSearch}
+                    onChange={(e) => setServidorSearch(e.target.value)}
+                  />
+                  {servidorSearch && (
+                    <button 
+                      onClick={() => setServidorSearch('')}
+                      style={{ position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                      title="Limpar busca"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {uniqueDres.length > 0 && (
+                  <div style={{ position: 'relative', width: '200px' }}>
+                    <select
+                      className="search-input"
+                      style={{ paddingRight: '2rem', marginBottom: 0, appearance: 'none', cursor: 'pointer', backgroundColor: 'var(--bg-color)' }}
+                      value={dreFilter}
+                      onChange={(e) => setDreFilter(e.target.value)}
+                    >
+                      <option value="all">Todas as DREs</option>
+                      {uniqueDres.map((dre, idx) => (
+                        <option key={idx} value={dre}>
+                          DRE: {dre}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} style={{ position: 'absolute', right: '10px', top: '12px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                  </div>
                 )}
               </div>
 
@@ -434,6 +463,7 @@ export default function Dashboard() {
                     </th>
                     <th>Matrícula</th>
                     <th>Vínculo</th>
+                    <th>DRE</th>
                     <th>Nome do Servidor</th>
                     <th>Escola</th>
                     <th>CPF</th>
@@ -445,7 +475,7 @@ export default function Dashboard() {
                 <tbody>
                   {filteredServidores.length === 0 ? (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                      <td colSpan="10" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                         Nenhum servidor encontrado na busca ou no filtro selecionado.
                       </td>
                     </tr>
@@ -465,6 +495,7 @@ export default function Dashboard() {
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>{servidor.matricula || '-'}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{servidor.vinculo || '-'}</td>
+                          <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{servidor.numero_dre || 'Não encontrado'}</td>
                           <td>
                             <div style={{ fontWeight: 600 }}>{servidor.nome}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }} title={servidor.dependente}>

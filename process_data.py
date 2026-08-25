@@ -3,7 +3,7 @@ import json
 import math
 
 try:
-    file_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/S-1202_0098406_00001 (1).xlsx"
+    file_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/S-1202_0098406_00001 (2).xlsx"
     print(f"Reading {file_path}...")
     df = pd.read_excel(file_path)
     
@@ -59,22 +59,27 @@ try:
                 "servidores": []
             }
             
+        numero_dre_val = clean_val(row.get('NUM DRE'))
+        if not numero_dre_val:
+            numero_dre_val = "Não encontrado"
+            
         servidor = {
             "nome": clean_val(row.get('NOME')),
             "cpf": clean_val(row.get('CPF.1')),
             "matricula": clean_val(row.get('NUMFUNC')),
             "vinculo": clean_val(row.get('NUMVINC')),
-            "escola": clean_val(row.get('Unnamed: 29')),
+            "escola": clean_val(row.get('Unnamed: 29')) if 'Unnamed: 29' in row else clean_val(row.get('ESCOLA')),
             "cargo": clean_val(row.get('CARGO')) + " - " + clean_val(row.get('NOME_CARGO')),
             "setor": clean_val(row.get('NOMESETOR')),
             "cidade": clean_val(row.get('CIDADE')),
             "dependente": dependente_val,
+            "numero_dre": numero_dre_val,
             "pendente": True
         }
         
         data_by_ure[ure_name]["servidores"].append(servidor)
         
-    output_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/data.json"
+    output_path = "c:/Users/SEDUC/Desktop/PROJETOS/ESOCIAL/frontend/public/data.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(list(data_by_ure.values()), f, ensure_ascii=False, indent=2)
         
