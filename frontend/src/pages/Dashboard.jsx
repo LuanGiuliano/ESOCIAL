@@ -58,13 +58,15 @@ export default function Dashboard() {
       let cpfsSupabase = []
       if (supabase) {
         try {
-          const { data } = await supabase.from('servidores_atualizacao').select('cpf')
-          if (data) cpfsSupabase = data.map(d => d.cpf)
+          // Aumentar o limite para 10000, pois o padrao e 1000
+          const { data } = await supabase.from('servidores_atualizacao').select('cpf').limit(10000)
+          if (data) cpfsSupabase = data.map(d => String(d.cpf).replace('.0', '').replace(/\D/g, ''))
         } catch (error) {
           console.error("Erro ao puxar dados do supabase", error)
         }
       }
 
+      cpfsLocal = cpfsLocal.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
       const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase]))
       setResolvidos(merged)
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(merged))
@@ -135,12 +137,14 @@ export default function Dashboard() {
     s.cargo.toLowerCase().includes(servidorSearch.toLowerCase())
   ) : []
 
+  const normalizeCpf = (cpf) => String(cpf).replace('.0', '').replace(/\D/g, '');
+
   if (statusFilter === 'concluido') {
-    filteredServidores = filteredServidores.filter(s => resolvidos.includes(s.cpf) && !analisados.includes(s.cpf))
+    filteredServidores = filteredServidores.filter(s => resolvidos.includes(normalizeCpf(s.cpf)) && !analisados.includes(normalizeCpf(s.cpf)))
   } else if (statusFilter === 'faltando') {
-    filteredServidores = filteredServidores.filter(s => !resolvidos.includes(s.cpf))
+    filteredServidores = filteredServidores.filter(s => !resolvidos.includes(normalizeCpf(s.cpf)))
   } else if (statusFilter === 'analisado') {
-    filteredServidores = filteredServidores.filter(s => analisados.includes(s.cpf))
+    filteredServidores = filteredServidores.filter(s => analisados.includes(normalizeCpf(s.cpf)))
   }
 
   if (dreFilter !== 'all') {
@@ -156,7 +160,7 @@ export default function Dashboard() {
   )).sort() : []
 
   const totalServidores = selectedUre?.servidores.length || 0
-  const currentUreCpfs = selectedUre?.servidores.map(s => s.cpf) || []
+  const currentUreCpfs = selectedUre?.servidores.map(s => normalizeCpf(s.cpf)) || []
   const resolvidosTotalNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf)).length
   const analisadosNestaUre = currentUreCpfs.filter(cpf => analisados.includes(cpf)).length
   const apenasConcluidosNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf) && !analisados.includes(cpf)).length
@@ -170,7 +174,8 @@ export default function Dashboard() {
     }
   }
 
-  const handleSelectOne = (cpf) => {
+  const handleSelectOne = (rawCpf) => {
+    const cpf = normalizeCpf(rawCpf);
     if (selectedCpfs.includes(cpf)) {
       setSelectedCpfs(selectedCpfs.filter(c => c !== cpf))
     } else {
@@ -178,7 +183,8 @@ export default function Dashboard() {
     }
   }
 
-  const toggleResolvido = (cpf) => {
+  const toggleResolvido = (rawCpf) => {
+    const cpf = normalizeCpf(rawCpf);
     if (resolvidos.includes(cpf)) {
       setResolvidos(resolvidos.filter(c => c !== cpf))
     } else {
@@ -193,7 +199,7 @@ export default function Dashboard() {
 
   const handleCopySelectedLinks = () => {
     if (selectedCpfs.length === 0) return;
-    const selectedData = filteredServidores.filter(s => selectedCpfs.includes(s.cpf));
+    const selectedData = filteredServidores.filter(s => selectedCpfs.includes(normalizeCpf(s.cpf)));
     let textToCopy = `Links de Atualização Cadastral - ${selectedUre.name}\n\n`;
     selectedData.forEach(s => {
       textToCopy += `Servidor(a): ${s.nome}\n`;
@@ -262,11 +268,11 @@ export default function Dashboard() {
         
       if (error) throw error;
       
-      const newResolvidos = resolvidos.filter(c => c !== viewModal.data.cpf);
+      const newResolvidos = resolvidos.filter(c => c !== normalizeCpf(viewModal.data.cpf));
       setResolvidos(newResolvidos);
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(newResolvidos));
       
-      const newAnalisados = analisados.filter(c => c !== viewModal.data.cpf);
+      const newAnalisados = analisados.filter(c => c !== normalizeCpf(viewModal.data.cpf));
       setAnalisados(newAnalisados);
       localStorage.setItem('analisados_cpfs', JSON.stringify(newAnalisados));
       
@@ -278,10 +284,13 @@ export default function Dashboard() {
   }
 
   const handleConcluirAnalise = () => {
-    if (viewModal.data && !analisados.includes(viewModal.data.cpf)) {
-      const novosAnalisados = [...analisados, viewModal.data.cpf];
-      setAnalisados(novosAnalisados);
-      localStorage.setItem('analisados_cpfs', JSON.stringify(novosAnalisados));
+    if (viewModal.data) {
+      const cpfNorm = normalizeCpf(viewModal.data.cpf);
+      if (!analisados.includes(cpfNorm)) {
+        const novosAnalisados = [...analisados, cpfNorm];
+        setAnalisados(novosAnalisados);
+        localStorage.setItem('analisados_cpfs', JSON.stringify(novosAnalisados));
+      }
     }
     setViewModal({ open: false, data: null });
   }
@@ -551,8 +560,8 @@ export default function Dashboard() {
                     </tr>
                   ) : (
                     filteredServidores.map((servidor, index) => {
-                      const isResolvido = resolvidos.includes(servidor.cpf);
-                      const isAnalisado = analisados.includes(servidor.cpf);
+                      const isResolvido = resolvidos.includes(normalizeCpf(servidor.cpf));
+                      const isAnalisado = analisados.includes(normalizeCpf(servidor.cpf));
                       
                       return (
                         <tr key={index} style={{ opacity: isResolvido ? 0.7 : 1 }}>
@@ -560,7 +569,7 @@ export default function Dashboard() {
                             <input 
                               type="checkbox" 
                               className="checkbox-custom"
-                              checked={selectedCpfs.includes(servidor.cpf)}
+                              checked={selectedCpfs.includes(normalizeCpf(servidor.cpf))}
                               onChange={() => handleSelectOne(servidor.cpf)}
                             />
                           </td>
