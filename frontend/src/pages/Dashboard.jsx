@@ -136,7 +136,7 @@ export default function Dashboard() {
   ) : []
 
   if (statusFilter === 'concluido') {
-    filteredServidores = filteredServidores.filter(s => resolvidos.includes(s.cpf))
+    filteredServidores = filteredServidores.filter(s => resolvidos.includes(s.cpf) && !analisados.includes(s.cpf))
   } else if (statusFilter === 'faltando') {
     filteredServidores = filteredServidores.filter(s => !resolvidos.includes(s.cpf))
   } else if (statusFilter === 'analisado') {
@@ -157,9 +157,10 @@ export default function Dashboard() {
 
   const totalServidores = selectedUre?.servidores.length || 0
   const currentUreCpfs = selectedUre?.servidores.map(s => s.cpf) || []
-  const resolvidosNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf)).length
-  const faltamNestaUre = totalServidores - resolvidosNestaUre
+  const resolvidosTotalNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf)).length
   const analisadosNestaUre = currentUreCpfs.filter(cpf => analisados.includes(cpf)).length
+  const apenasConcluidosNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf) && !analisados.includes(cpf)).length
+  const faltamNestaUre = totalServidores - resolvidosTotalNestaUre
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -411,7 +412,7 @@ export default function Dashboard() {
                   <CheckCircle2 size={20} />
                   <span className="stat-label" style={{ color: '#166534', fontSize: '0.9rem' }}>Concluídos / Enviados</span>
                 </div>
-                <span className="stat-value" style={{ color: '#15803d' }}>{resolvidosNestaUre}</span>
+                <span className="stat-value" style={{ color: '#15803d' }}>{apenasConcluidosNestaUre}</span>
               </div>
 
               <div 
