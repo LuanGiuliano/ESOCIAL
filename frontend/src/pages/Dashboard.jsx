@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, AlertCircle, CheckCircle2, ChevronRight, ExternalLink, Search, Copy, X, Clock, FileSpreadsheet, Eye, ChevronDown } from 'lucide-react'
+import { Users, AlertCircle, CheckCircle2, ChevronRight, ExternalLink, Search, Copy, X, Clock, FileSpreadsheet, Eye, ChevronDown, ClipboardCheck } from 'lucide-react'
 import { supabase } from '../supabase'
 
 export default function Dashboard() {
@@ -20,6 +20,7 @@ export default function Dashboard() {
 
   // Tracking state (LocalStorage + Supabase)
   const [resolvidos, setResolvidos] = useState([])
+  const [analisados, setAnalisados] = useState([])
 
   // Modal states
   const [viewModal, setViewModal] = useState({ open: false, data: null, loading: false, error: false })
@@ -29,9 +30,16 @@ export default function Dashboard() {
     fetch('/data.json')
       .then(res => res.json())
       .then(jsonData => {
-        setData(jsonData)
         if (jsonData.length > 0) {
-          setSelectedUre(jsonData[0])
+          const geral = {
+            name: 'GERAL (Todas as Unidades)',
+            isGeral: true,
+            servidores: jsonData.flatMap(u => u.servidores)
+          };
+          setData([geral, ...jsonData])
+          setSelectedUre(geral)
+        } else {
+          setData([])
         }
         setLoading(false)
       })
@@ -60,6 +68,13 @@ export default function Dashboard() {
       const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase]))
       setResolvidos(merged)
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(merged))
+
+      let analisadosLocal = []
+      const savedAnalisados = localStorage.getItem('analisados_cpfs')
+      if (savedAnalisados) {
+        try { analisadosLocal = JSON.parse(savedAnalisados) } catch(e) {}
+      }
+      setAnalisados(analisadosLocal)
     }
 
     loadData()
@@ -73,6 +88,11 @@ export default function Dashboard() {
           setResolvidos(JSON.parse(e.newValue))
         } catch(err) {}
       }
+      if (e.key === 'analisados_cpfs' && e.newValue) {
+        try {
+          setAnalisados(JSON.parse(e.newValue))
+        } catch(err) {}
+      }
     }
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
@@ -83,6 +103,12 @@ export default function Dashboard() {
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(resolvidos))
     }
   }, [resolvidos, loading])
+
+  useEffect(() => {
+    if (!loading && analisados.length > 0) {
+      localStorage.setItem('analisados_cpfs', JSON.stringify(analisados))
+    }
+  }, [analisados, loading])
 
   useEffect(() => {
     setSelectedCpfs([])
@@ -113,6 +139,8 @@ export default function Dashboard() {
     filteredServidores = filteredServidores.filter(s => resolvidos.includes(s.cpf))
   } else if (statusFilter === 'faltando') {
     filteredServidores = filteredServidores.filter(s => !resolvidos.includes(s.cpf))
+  } else if (statusFilter === 'analisado') {
+    filteredServidores = filteredServidores.filter(s => analisados.includes(s.cpf))
   }
 
   if (dreFilter !== 'all') {
@@ -131,6 +159,7 @@ export default function Dashboard() {
   const currentUreCpfs = selectedUre?.servidores.map(s => s.cpf) || []
   const resolvidosNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf)).length
   const faltamNestaUre = totalServidores - resolvidosNestaUre
+  const analisadosNestaUre = currentUreCpfs.filter(cpf => analisados.includes(cpf)).length
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -236,11 +265,24 @@ export default function Dashboard() {
       setResolvidos(newResolvidos);
       localStorage.setItem('resolvidos_cpfs', JSON.stringify(newResolvidos));
       
+      const newAnalisados = analisados.filter(c => c !== viewModal.data.cpf);
+      setAnalisados(newAnalisados);
+      localStorage.setItem('analisados_cpfs', JSON.stringify(newAnalisados));
+      
       setViewModal({ open: false, data: null });
     } catch(err) {
       console.error(err);
       alert("Erro ao excluir resposta. Verifique se o banco de dados permite a exclusão.");
     }
+  }
+
+  const handleConcluirAnalise = () => {
+    if (viewModal.data && !analisados.includes(viewModal.data.cpf)) {
+      const novosAnalisados = [...analisados, viewModal.data.cpf];
+      setAnalisados(novosAnalisados);
+      localStorage.setItem('analisados_cpfs', JSON.stringify(novosAnalisados));
+    }
+    setViewModal({ open: false, data: null });
   }
 
 
@@ -305,6 +347,7 @@ export default function Dashboard() {
               <div 
                 key={ure.name} 
                 className={`ure-item ${selectedUre?.name === ure.name ? 'active' : ''}`}
+                style={ure.isGeral ? { fontWeight: 'bold', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem' } : {}}
                 onClick={() => setSelectedUre(ure)}
               >
                 <span>{ure.name}</span>
@@ -389,6 +432,26 @@ export default function Dashboard() {
                   <span className="stat-label" style={{ color: '#9a3412', fontSize: '0.9rem' }}>Faltam Enviar</span>
                 </div>
                 <span className="stat-value" style={{ color: '#c2410c' }}>{faltamNestaUre}</span>
+              </div>
+
+              <div 
+                className="glass-panel stat-card" 
+                style={{ 
+                  backgroundColor: '#f3e8ff', 
+                  borderColor: '#e9d5ff',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === 'analisado' ? '0 0 0 3px rgba(147, 51, 234, 0.3)' : 'none',
+                  transform: statusFilter === 'analisado' ? 'scale(1.02)' : 'scale(1)',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setStatusFilter('analisado')}
+                title="Filtrar apenas os que já tiveram a análise concluída"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#9333ea' }}>
+                  <ClipboardCheck size={20} />
+                  <span className="stat-label" style={{ color: '#7e22ce', fontSize: '0.9rem' }}>Análise Concluída</span>
+                </div>
+                <span className="stat-value" style={{ color: '#6b21a8' }}>{analisadosNestaUre}</span>
               </div>
             </div>
 
@@ -488,6 +551,7 @@ export default function Dashboard() {
                   ) : (
                     filteredServidores.map((servidor, index) => {
                       const isResolvido = resolvidos.includes(servidor.cpf);
+                      const isAnalisado = analisados.includes(servidor.cpf);
                       
                       return (
                         <tr key={index} style={{ opacity: isResolvido ? 0.7 : 1 }}>
@@ -516,7 +580,11 @@ export default function Dashboard() {
                           <td style={{ color: 'var(--text-secondary)' }}>{formatCPF(servidor.cpf)}</td>
                           <td style={{ fontSize: '0.875rem' }}>{servidor.cargo}</td>
                           <td>
-                            {isResolvido ? (
+                            {isAnalisado ? (
+                              <span className="status-badge" style={{ backgroundColor: '#f3e8ff', color: '#7e22ce', cursor: 'pointer' }} onClick={() => toggleResolvido(servidor.cpf)}>
+                                ✓ Análise Concluída
+                              </span>
+                            ) : isResolvido ? (
                               <span className="status-badge status-ok" style={{ cursor: 'pointer' }} onClick={() => toggleResolvido(servidor.cpf)}>
                                 ✓ Concluído/Enviado
                               </span>
@@ -637,7 +705,10 @@ export default function Dashboard() {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
               {viewModal.data ? (
-                <button className="btn btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleDeleteResponse}>Excluir Resposta</button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button className="btn btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleDeleteResponse}>Excluir Resposta</button>
+                  <button className="btn btn-primary" style={{ backgroundColor: '#9333ea', borderColor: '#9333ea' }} onClick={handleConcluirAnalise}>Concluir Análise</button>
+                </div>
               ) : (
                 <div />
               )}
