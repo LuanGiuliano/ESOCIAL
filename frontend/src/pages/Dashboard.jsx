@@ -76,7 +76,19 @@ export default function Dashboard() {
       if (savedAnalisados) {
         try { analisadosLocal = JSON.parse(savedAnalisados) } catch(e) {}
       }
-      setAnalisados(analisadosLocal)
+
+      let analisadosBase = []
+      try {
+        const res = await fetch('/analisados.json')
+        if (res.ok) {
+          analisadosBase = await res.json()
+        }
+      } catch(e) {
+        console.error("Erro ao puxar analisados.json", e)
+      }
+
+      const mergedAnalisados = Array.from(new Set([...analisadosLocal, ...analisadosBase].map(c => String(c).replace('.0', '').replace(/\D/g, ''))))
+      setAnalisados(mergedAnalisados)
     }
 
     loadData()
