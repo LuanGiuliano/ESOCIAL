@@ -154,7 +154,7 @@ export default function Dashboard() {
   if (statusFilter === 'concluido') {
     filteredServidores = filteredServidores.filter(s => resolvidos.includes(normalizeCpf(s.cpf)) && !analisados.includes(normalizeCpf(s.cpf)))
   } else if (statusFilter === 'faltando') {
-    filteredServidores = filteredServidores.filter(s => !resolvidos.includes(normalizeCpf(s.cpf)))
+    filteredServidores = filteredServidores.filter(s => !resolvidos.includes(normalizeCpf(s.cpf)) && !analisados.includes(normalizeCpf(s.cpf)))
   } else if (statusFilter === 'analisado') {
     filteredServidores = filteredServidores.filter(s => analisados.includes(normalizeCpf(s.cpf)))
   }
@@ -173,10 +173,9 @@ export default function Dashboard() {
 
   const totalServidores = selectedUre?.servidores.length || 0
   const currentUreCpfs = selectedUre?.servidores.map(s => normalizeCpf(s.cpf)) || []
-  const resolvidosTotalNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf)).length
   const analisadosNestaUre = currentUreCpfs.filter(cpf => analisados.includes(cpf)).length
   const apenasConcluidosNestaUre = currentUreCpfs.filter(cpf => resolvidos.includes(cpf) && !analisados.includes(cpf)).length
-  const faltamNestaUre = totalServidores - resolvidosTotalNestaUre
+  const faltamNestaUre = currentUreCpfs.filter(cpf => !resolvidos.includes(cpf) && !analisados.includes(cpf)).length
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
