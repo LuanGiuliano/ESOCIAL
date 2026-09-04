@@ -58,9 +58,37 @@ export default function Dashboard() {
       let cpfsSupabase = []
       if (supabase) {
         try {
-          // Aumentar o limite para 10000, pois o padrao e 1000
-          const { data } = await supabase.from('servidores_atualizacao').select('cpf').limit(10000)
-          if (data) cpfsSupabase = data.map(d => String(d.cpf).replace('.0', '').replace(/\D/g, ''))
+          let allData = [];
+          let from = 0;
+          let to = 999;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data, error } = await supabase
+              .from('servidores_atualizacao')
+              .select('cpf')
+              .range(from, to);
+
+            if (error) {
+              console.error("Erro ao puxar dados do supabase", error);
+              break;
+            }
+
+            if (data && data.length > 0) {
+              allData = [...allData, ...data];
+              from += 1000;
+              to += 1000;
+              if (data.length < 1000) {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          }
+
+          if (allData.length > 0) {
+             cpfsSupabase = allData.map(d => String(d.cpf).replace('.0', '').replace(/\D/g, ''))
+          }
         } catch (error) {
           console.error("Erro ao puxar dados do supabase", error)
         }

@@ -9,12 +9,25 @@ headers = {
     'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkbXVlZG1heXlram9mdWpmZG1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MjYxMDIsImV4cCI6MjEwMzAwMjEwMn0.ndE4g36nNiBMkNjRcifGQasEz9deRjYtg338Y_54m1k',
     'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkbXVlZG1heXlram9mdWpmZG1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MjYxMDIsImV4cCI6MjEwMzAwMjEwMn0.ndE4g36nNiBMkNjRcifGQasEz9deRjYtg338Y_54m1k'
 }
-response = requests.get(supabase_url, headers=headers)
-if response.status_code != 200:
-    print(f"Error fetching from Supabase: {response.text}")
-    exit(1)
 
-supabase_data = response.json()
+supabase_data = []
+offset = 0
+limit = 1000
+
+while True:
+    url = f"{supabase_url}&offset={offset}&limit={limit}"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"Error fetching from Supabase: {response.text}")
+        exit(1)
+        
+    data = response.json()
+    supabase_data.extend(data)
+    
+    if len(data) < limit:
+        break
+    offset += limit
+
 print(f"Fetched {len(supabase_data)} records from Supabase.")
 
 # 2. Load data.json for DRE
