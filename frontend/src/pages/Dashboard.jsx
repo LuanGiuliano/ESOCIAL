@@ -56,48 +56,45 @@ export default function Dashboard() {
       }
 
       let cpfsSupabase = []
+      let resolucoesManuaisSupabase = []
+      let analisesConcluidasSupabase = []
+
       if (supabase) {
         try {
+          // Fetch servidores_atualizacao
           let allData = [];
           let from = 0;
           let to = 999;
           let hasMore = true;
-
           while (hasMore) {
-            const { data, error } = await supabase
-              .from('servidores_atualizacao')
-              .select('cpf')
-              .range(from, to);
-
-            if (error) {
-              console.error("Erro ao puxar dados do supabase", error);
-              break;
-            }
-
+            const { data, error } = await supabase.from('servidores_atualizacao').select('cpf').range(from, to);
+            if (error) break;
             if (data && data.length > 0) {
               allData = [...allData, ...data];
-              from += 1000;
-              to += 1000;
-              if (data.length < 1000) {
-                hasMore = false;
-              }
-            } else {
-              hasMore = false;
-            }
+              from += 1000; to += 1000;
+              if (data.length < 1000) hasMore = false;
+            } else hasMore = false;
           }
-
           if (allData.length > 0) {
              cpfsSupabase = allData.map(d => String(d.cpf).replace('.0', '').replace(/\D/g, ''))
           }
+
+          // Fetch resolucoes_manuais
+          const { data: resManuais } = await supabase.from('resolucoes_manuais').select('cpf');
+          if (resManuais) resolucoesManuaisSupabase = resManuais.map(d => String(d.cpf).replace(/\D/g, ''));
+
+          // Fetch analises_concluidas
+          const { data: analises } = await supabase.from('analises_concluidas').select('cpf');
+          if (analises) analisesConcluidasSupabase = analises.map(d => String(d.cpf).replace(/\D/g, ''));
+
         } catch (error) {
           console.error("Erro ao puxar dados do supabase", error)
         }
       }
 
       cpfsLocal = cpfsLocal.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
-      const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase]))
+      const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase, ...resolucoesManuaisSupabase]))
       setResolvidos(merged)
-      localStorage.setItem('resolvidos_cpfs', JSON.stringify(merged))
 
       let analisadosLocal = []
       const savedAnalisados = localStorage.getItem('analisados_cpfs')
@@ -108,49 +105,15 @@ export default function Dashboard() {
       let analisadosBase = []
       try {
         const res = await fetch('/analisados.json')
-        if (res.ok) {
-          analisadosBase = await res.json()
-        }
-      } catch(e) {
-        console.error("Erro ao puxar analisados.json", e)
-      }
+        if (res.ok) analisadosBase = await res.json()
+      } catch(e) {}
 
-      const mergedAnalisados = Array.from(new Set([...analisadosLocal, ...analisadosBase].map(c => String(c).replace('.0', '').replace(/\D/g, ''))))
+      const mergedAnalisados = Array.from(new Set([...analisadosLocal, ...analisadosBase, ...analisesConcluidasSupabase].map(c => String(c).replace('.0', '').replace(/\D/g, ''))))
       setAnalisados(mergedAnalisados)
     }
 
     loadData()
   }, [])
-
-  // Listen to storage changes
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'resolvidos_cpfs' && e.newValue) {
-        try {
-          setResolvidos(JSON.parse(e.newValue))
-        } catch(err) {}
-      }
-      if (e.key === 'analisados_cpfs' && e.newValue) {
-        try {
-          setAnalisados(JSON.parse(e.newValue))
-        } catch(err) {}
-      }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
-
-  useEffect(() => {
-    if (!loading && resolvidos.length > 0) {
-      localStorage.setItem('resolvidos_cpfs', JSON.stringify(resolvidos))
-    }
-  }, [resolvidos, loading])
-
-  useEffect(() => {
-    if (!loading && analisados.length > 0) {
-      localStorage.setItem('analisados_cpfs', JSON.stringify(analisados))
-    }
-  }, [analisados, loading])
 
   useEffect(() => {
     setSelectedCpfs([])
@@ -222,12 +185,24 @@ export default function Dashboard() {
     }
   }
 
-  const toggleResolvido = (rawCpf) => {
+  const toggleResolvido = async (rawCpf) => {
     const cpf = normalizeCpf(rawCpf);
-    if (resolvidos.includes(cpf)) {
-      setResolvidos(resolvidos.filter(c => c !== cpf))
+    const isResolvido = resolvidos.includes(cpf);
+
+    if (isResolvido) {
+      const newResolvidos = resolvidos.filter(c => c !== cpf);
+      setResolvidos(newResolvidos);
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(newResolvidos));
+      if (supabase) {
+        await supabase.from('resolucoes_manuais').delete().eq('cpf', cpf);
+      }
     } else {
-      setResolvidos([...resolvidos, cpf])
+      const newResolvidos = [...resolvidos, cpf];
+      setResolvidos(newResolvidos);
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(newResolvidos));
+      if (supabase) {
+        await supabase.from('resolucoes_manuais').insert([{ cpf }]).select();
+      }
     }
   }
 
@@ -245,10 +220,18 @@ export default function Dashboard() {
       textToCopy += `Link: ${generateLink(s)}\n\n`;
     });
 
-    navigator.clipboard.writeText(textToCopy).then(() => {
+    navigator.clipboard.writeText(textToCopy).then(async () => {
       setCopiedFeedback(true);
       const novosResolvidos = new Set([...resolvidos, ...selectedCpfs]);
-      setResolvidos(Array.from(novosResolvidos));
+      const arrayResolvidos = Array.from(novosResolvidos);
+      setResolvidos(arrayResolvidos);
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(arrayResolvidos));
+      
+      if (supabase && selectedCpfs.length > 0) {
+        const inserts = selectedCpfs.map(cpf => ({ cpf }));
+        await supabase.from('resolucoes_manuais').upsert(inserts, { onConflict: 'cpf' });
+      }
+
       setTimeout(() => {
         setCopiedFeedback(false);
         setSelectedCpfs([]); 
@@ -315,6 +298,11 @@ export default function Dashboard() {
       setAnalisados(newAnalisados);
       localStorage.setItem('analisados_cpfs', JSON.stringify(newAnalisados));
       
+      if (supabase) {
+        await supabase.from('resolucoes_manuais').delete().eq('cpf', normalizeCpf(viewModal.data.cpf));
+        await supabase.from('analises_concluidas').delete().eq('cpf', normalizeCpf(viewModal.data.cpf));
+      }
+      
       setViewModal({ open: false, data: null });
     } catch(err) {
       console.error(err);
@@ -322,13 +310,16 @@ export default function Dashboard() {
     }
   }
 
-  const handleConcluirAnalise = () => {
+  const handleConcluirAnalise = async () => {
     if (viewModal.data) {
       const cpfNorm = normalizeCpf(viewModal.data.cpf);
       if (!analisados.includes(cpfNorm)) {
         const novosAnalisados = [...analisados, cpfNorm];
         setAnalisados(novosAnalisados);
         localStorage.setItem('analisados_cpfs', JSON.stringify(novosAnalisados));
+        if (supabase) {
+          await supabase.from('analises_concluidas').insert([{ cpf: cpfNorm }]).select();
+        }
       }
     }
     setViewModal({ open: false, data: null });
