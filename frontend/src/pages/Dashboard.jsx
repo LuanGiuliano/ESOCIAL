@@ -54,6 +54,21 @@ export default function Dashboard() {
       if (saved) {
         try { cpfsLocal = JSON.parse(saved) } catch(e) {}
       }
+      cpfsLocal = cpfsLocal.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
+
+      let analisadosLocal = []
+      const savedAnalisados = localStorage.getItem('analisados_cpfs')
+      if (savedAnalisados) {
+        try { analisadosLocal = JSON.parse(savedAnalisados) } catch(e) {}
+      }
+      analisadosLocal = analisadosLocal.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
+
+      let analisadosBase = []
+      try {
+        const res = await fetch('/analisados.json')
+        if (res.ok) analisadosBase = await res.json()
+      } catch(e) {}
+      analisadosBase = analisadosBase.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
 
       let cpfsSupabase = []
       let resolucoesManuaisSupabase = []
@@ -83,33 +98,47 @@ export default function Dashboard() {
           const { data: resManuais } = await supabase.from('resolucoes_manuais').select('cpf');
           if (resManuais) resolucoesManuaisSupabase = resManuais.map(d => String(d.cpf).replace(/\D/g, ''));
 
+          // Auto-migrate local resolvidos to Supabase
+          if (cpfsLocal.length > 0) {
+            const orphans = cpfsLocal.filter(c => !cpfsSupabase.includes(c) && !resolucoesManuaisSupabase.includes(c));
+            if (orphans.length > 0) {
+              for (let i = 0; i < orphans.length; i+=1000) {
+                const chunk = orphans.slice(i, i+1000).map(cpf => ({ cpf }));
+                await supabase.from('resolucoes_manuais').upsert(chunk, { onConflict: 'cpf' });
+              }
+              resolucoesManuaisSupabase = [...resolucoesManuaisSupabase, ...orphans];
+            }
+          }
+
           // Fetch analises_concluidas
           const { data: analises } = await supabase.from('analises_concluidas').select('cpf');
           if (analises) analisesConcluidasSupabase = analises.map(d => String(d.cpf).replace(/\D/g, ''));
+
+          // Auto-migrate local analisados to Supabase
+          if (analisadosLocal.length > 0) {
+            const orphans = analisadosLocal.filter(c => !analisadosBase.includes(c) && !analisesConcluidasSupabase.includes(c));
+            if (orphans.length > 0) {
+              for (let i = 0; i < orphans.length; i+=1000) {
+                const chunk = orphans.slice(i, i+1000).map(cpf => ({ cpf }));
+                await supabase.from('analises_concluidas').upsert(chunk, { onConflict: 'cpf' });
+              }
+              analisesConcluidasSupabase = [...analisesConcluidasSupabase, ...orphans];
+            }
+          }
 
         } catch (error) {
           console.error("Erro ao puxar dados do supabase", error)
         }
       }
 
-      cpfsLocal = cpfsLocal.map(c => String(c).replace('.0', '').replace(/\D/g, ''))
-      const merged = Array.from(new Set([...cpfsLocal, ...cpfsSupabase, ...resolucoesManuaisSupabase]))
-      setResolvidos(merged)
+      // Sync strict with cloud (Reset local to cloud truth)
+      const finalResolvidos = Array.from(new Set([...cpfsSupabase, ...resolucoesManuaisSupabase]))
+      setResolvidos(finalResolvidos)
+      localStorage.setItem('resolvidos_cpfs', JSON.stringify(finalResolvidos))
 
-      let analisadosLocal = []
-      const savedAnalisados = localStorage.getItem('analisados_cpfs')
-      if (savedAnalisados) {
-        try { analisadosLocal = JSON.parse(savedAnalisados) } catch(e) {}
-      }
-
-      let analisadosBase = []
-      try {
-        const res = await fetch('/analisados.json')
-        if (res.ok) analisadosBase = await res.json()
-      } catch(e) {}
-
-      const mergedAnalisados = Array.from(new Set([...analisadosLocal, ...analisadosBase, ...analisesConcluidasSupabase].map(c => String(c).replace('.0', '').replace(/\D/g, ''))))
-      setAnalisados(mergedAnalisados)
+      const finalAnalisados = Array.from(new Set([...analisadosBase, ...analisesConcluidasSupabase]))
+      setAnalisados(finalAnalisados)
+      localStorage.setItem('analisados_cpfs', JSON.stringify(finalAnalisados))
     }
 
     loadData()
